@@ -76,6 +76,27 @@ class ReBuildApiClient:
                 "Cannot reach the API. Start the backend (python run.py) and check the URL."
             ) from exc
 
+    def register_user(
+        self, full_name: str, email: str, mobile_number: str, password: str
+    ) -> Dict[str, Any]:
+        data = self._request(
+            "POST",
+            "/auth/register",
+            json_body={
+                "full_name": full_name,
+                "email": email,
+                "mobile_number": mobile_number,
+                "password": password,
+            },
+            auth=False,
+        )
+        self.access_token = data["access_token"]
+        self.refresh_token = data.get("refresh_token")
+        return data
+
+    def create_company(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return self._request("POST", "/companies", json_body=payload)
+
     def login(self, email: str, password: str) -> Dict[str, Any]:
         data = self._request(
             "POST",

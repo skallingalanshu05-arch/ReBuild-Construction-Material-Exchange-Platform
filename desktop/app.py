@@ -62,13 +62,23 @@ class ReBuildApp(tk.Tk):
 
         self.api: Optional[ReBuildApiClient] = None
 
-        self.listing_count = tk.StringVar(value="0 listings")
-        self.status = tk.StringVar(value="Sign in on the Account tab — data is saved to MongoDB via the API")
+        self.listing_count = tk.StringVar(value="")
+        self.status = tk.StringVar(value="Sign in or create an account to continue")
+
+        self.auth_frame: ttk.Frame
+        self.main_frame: ttk.Frame
+        self.auth_notebook: ttk.Notebook
+        self._login_email = tk.StringVar()
+        self._login_password = tk.StringVar()
 
         self._build_header()
         self._build_body()
         self._build_status_bar()
         self._init_api_client()
+        if self._is_logged_in():
+            self._enter_main_app(silent=True)
+        else:
+            self._show_auth_screen()
 
     def _build_header(self) -> None:
         bar = ttk.Frame(self, style="Header.TFrame", padding=(20, 18))
@@ -91,76 +101,100 @@ class ReBuildApp(tk.Tk):
 
         badge = ttk.Label(bar, textvariable=self.listing_count, style="HeaderBadge.TLabel")
         badge.pack(side=tk.RIGHT, padx=(12, 0))
+        self._header_logout = ttk.Button(
+            bar,
+            text="Sign out",
+            style="Secondary.TButton",
+            command=self._logout,
+        )
+        # Shown only when the main app is visible
 
     def _build_body(self) -> None:
         shell = ttk.Frame(self, padding=(16, 12))
         shell.pack(fill=tk.BOTH, expand=True)
+        self._body_shell = shell
 
-        notebook = ttk.Notebook(shell)
+        self.auth_frame = ttk.Frame(shell)
+        self.main_frame = ttk.Frame(shell)
+
+        self._build_auth_screen(self.auth_frame)
+        self._build_main_screen(self.main_frame)
+
+    def _show_auth_screen(self) -> None:
+        self.main_frame.pack_forget()
+        self._header_logout.pack_forget()
+        self.listing_count.set("")
+        self.auth_frame.pack(fill=tk.BOTH, expand=True)
+        self.status.set("Sign in or register — backend must be running with MongoDB")
+        self.title("ReBuild — Sign in")
+
+    def _show_main_screen(self) -> None:
+        self.auth_frame.pack_forget()
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        self._header_logout.pack(side=tk.RIGHT, padx=(8, 0))
+        self.title("ReBuild — Material Exchange")
+
+    def _enter_main_app(self, *, silent: bool = False) -> None:
+        self._show_main_screen()
+        self._refresh_inventory_tree()
+        email = self._user_email.get()
+        self.listing_count.set(email if email else "Signed in")
+        self.status.set("Signed in — data is saved in MongoDB")
+        if not silent:
+            messagebox.showinfo("Welcome", f"Signed in as {email}")
+
+    def _logout(self) -> None:
+        if self.api:
+            self.api.logout()
+        save_session(None)
+        self._user_email.set("Not signed in")
+        self.listings.clear()
+        self._login_password.set("")
+        self._show_auth_screen()
+        self.auth_notebook.select(0)
+
+    def _build_auth_screen(self, parent: ttk.Frame) -> None:
+        ttk.Label(
+            parent,
+            text="Welcome to ReBuild",
+            style="CardTitle.TLabel",
+        ).pack(anchor=tk.W, pady=(0, 4))
+        ttk.Label(
+            parent,
+            text="Create an account or sign in. Your listings are stored in MongoDB through the API.",
+            style="Muted.TLabel",
+            wraplength=880,
+        ).pack(anchor=tk.W, pady=(0, 12))
+
+        conn = self._card(parent, "Backend connection")
+        conn.pack(fill=tk.X, pady=(0, 10))
+        self._form_field(conn, 0, "API base URL", ttk.Entry(conn, textvariable=self._api_url, width=48))
+
+        self.auth_notebook = ttk.Notebook(parent)
+        self.auth_notebook.pack(fill=tk.BOTH, expand=True)
+        self._build_auth_login_tab(self.auth_notebook)
+        self._build_auth_register_tab(self.auth_notebook)
+
+    def _build_main_screen(self, parent: ttk.Frame) -> None:
+        notebook = ttk.Notebook(parent)
         notebook.pack(fill=tk.BOTH, expand=True)
-
-        self._account_tab(notebook)
         self._register_tab(notebook)
         self._search_tab(notebook)
         self._inventory_tab(notebook)
 
-    def _init_api_client(self) -> None:
-        self.api = ReBuildApiClient(self._api_url.get().strip())
-        session = load_session()
-        if session:
-            self.api.load_tokens(session.get("access_token"), session.get("refresh_token"))
-            if session.get("email"):
-                self._user_email.set(session["email"])
-            try:
-                self.api.me()
-                self._categories = self.api.list_categories()
-                self._refresh_inventory_tree()
-                self.status.set("Signed in — listings load from MongoDB")
-            except ApiError:
-                save_session(None)
-                self.api.load_tokens(None, None)
-                self._user_email.set("Not signed in")
+    def _build_auth_login_tab(self, notebook: ttk.Notebook) -> None:
+        tab = ttk.Frame(notebook, padding=16)
+        notebook.add(tab, text="  Sign in  ")
 
-    def _is_logged_in(self) -> bool:
-        return bool(self.api and self.api.access_token)
+        card = self._card(tab, "Your account")
+        card.pack(fill=tk.X, pady=8)
 
-    def _require_login(self) -> bool:
-        if self._is_logged_in():
-            return True
-        messagebox.showwarning(
-            "Sign in required",
-            "Open the Account tab, sign in, and ensure the backend is running.\n"
-            "Listings are stored in MongoDB through the API.",
-        )
-        return False
-
-    def _account_tab(self, notebook: ttk.Notebook) -> None:
-        tab = ttk.Frame(notebook, padding=4)
-        notebook.add(tab, text="  Account  ")
-
-        card = self._card(tab, "Backend connection")
-        card.pack(fill=tk.X, pady=(4, 10))
-
-        self._form_field(card, 0, "API base URL", ttk.Entry(card, textvariable=self._api_url, width=48))
-        ttk.Label(
+        self._form_field(card, 0, "Email", ttk.Entry(card, textvariable=self._login_email, width=36))
+        self._form_field(
             card,
-            text="Default: http://127.0.0.1:8000/api/v1 — start backend with python run.py and MongoDB running.",
-            style="Muted.TLabel",
-        ).grid(row=1, column=1, sticky=tk.W)
-
-        cred = self._card(tab, "Sign in")
-        cred.pack(fill=tk.X, pady=(0, 10))
-
-        email_var = tk.StringVar()
-        password_var = tk.StringVar()
-        self._form_field(cred, 0, "Email", ttk.Entry(cred, textvariable=email_var, width=36))
-        self._form_field(cred, 1, "Password", ttk.Entry(cred, textvariable=password_var, width=36, show="•"))
-
-        status_card = self._card(tab, "Session")
-        status_card.pack(fill=tk.X)
-        ttk.Label(status_card, text="Signed in as:", style="Field.TLabel").grid(row=0, column=0, sticky=tk.W)
-        ttk.Label(status_card, textvariable=self._user_email, style="Field.TLabel").grid(
-            row=0, column=1, sticky=tk.W
+            1,
+            "Password",
+            ttk.Entry(card, textvariable=self._login_password, width=36, show="•"),
         )
 
         def do_login() -> None:
@@ -170,9 +204,10 @@ class ReBuildApp(tk.Tk):
                 return
             save_config({"api_base_url": url})
             self.api = ReBuildApiClient(url)
+            email = self._login_email.get().strip()
             try:
                 self.config(cursor="watch")
-                self.api.login(email_var.get().strip(), password_var.get())
+                self.api.login(email, self._login_password.get())
                 self.api.me()
                 self._categories = self.api.list_categories()
             except ApiError as exc:
@@ -184,32 +219,193 @@ class ReBuildApp(tk.Tk):
                 {
                     "access_token": self.api.access_token,
                     "refresh_token": self.api.refresh_token,
-                    "email": email_var.get().strip(),
+                    "email": email,
                 }
             )
-            self._user_email.set(email_var.get().strip())
-            password_var.set("")
-            self._refresh_inventory_tree()
-            self.status.set("Signed in — new listings save to MongoDB")
-            messagebox.showinfo("Signed in", "Connected to the backend. Data will persist in MongoDB.")
+            self._user_email.set(email)
+            self._login_password.set("")
+            self._enter_main_app()
 
-        def do_logout() -> None:
-            if self.api:
-                self.api.logout()
-            save_session(None)
-            self._user_email.set("Not signed in")
-            self.listings.clear()
-            self._refresh_inventory_tree()
-            self.status.set("Signed out")
+        btn = ttk.Frame(card, style="Card.TFrame")
+        btn.grid(row=2, column=1, sticky=tk.E, pady=(14, 0))
+        ttk.Button(btn, text="Sign in", style="Primary.TButton", command=do_login).pack(side=tk.RIGHT)
 
-        btn_row = ttk.Frame(cred, style="Card.TFrame")
-        btn_row.grid(row=2, column=1, sticky=tk.E, pady=(12, 0))
-        ttk.Button(btn_row, text="Sign in", style="Primary.TButton", command=do_login).pack(
-            side=tk.RIGHT, padx=(8, 0)
+        ttk.Label(
+            tab,
+            text="New here? Open the Register tab above to create your company account.",
+            style="Muted.TLabel",
+        ).pack(anchor=tk.W, pady=(12, 0))
+
+    def _build_auth_register_tab(self, notebook: ttk.Notebook) -> None:
+        tab = ttk.Frame(notebook, padding=8)
+        notebook.add(tab, text="  Register  ")
+
+        outer = ttk.Frame(tab)
+        outer.pack(fill=tk.BOTH, expand=True)
+
+        canvas = tk.Canvas(outer, bg=BG, highlightthickness=0)
+        scroll = ttk.Scrollbar(outer, orient=tk.VERTICAL, command=canvas.yview)
+        inner = ttk.Frame(canvas)
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=inner, anchor=tk.NW)
+        canvas.configure(yscrollcommand=scroll.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        ttk.Label(
+            inner,
+            text="Password: 8+ characters with uppercase, lowercase, and a number (e.g. SecurePass1).",
+            style="Muted.TLabel",
+            wraplength=820,
+        ).pack(anchor=tk.W, pady=(0, 8))
+
+        card = self._card(inner, "Register your company")
+        card.pack(fill=tk.X)
+
+        v: Dict[str, tk.StringVar] = {
+            "full_name": tk.StringVar(),
+            "email": tk.StringVar(),
+            "mobile": tk.StringVar(),
+            "password": tk.StringVar(),
+            "confirm": tk.StringVar(),
+            "company_name": tk.StringVar(),
+            "address": tk.StringVar(),
+            "city": tk.StringVar(),
+            "state": tk.StringVar(),
+            "country": tk.StringVar(value="India"),
+            "capability": tk.StringVar(value="both"),
+        }
+
+        rows = [
+            ("Full name", "full_name", False),
+            ("Email", "email", False),
+            ("Mobile number", "mobile", False),
+            ("Password", "password", True),
+            ("Confirm password", "confirm", True),
+            ("Company name", "company_name", False),
+            ("Company address", "address", False),
+            ("City", "city", False),
+            ("State", "state", False),
+            ("Country", "country", False),
+        ]
+        for i, (label, key, secret) in enumerate(rows):
+            entry = ttk.Entry(
+                card,
+                textvariable=v[key],
+                width=40,
+                show="•" if secret else "",
+            )
+            self._form_field(card, i, label, entry)
+
+        ttk.Label(card, text="Capability", style="Field.TLabel").grid(
+            row=len(rows), column=0, sticky=tk.W, padx=(0, 12), pady=6
         )
-        ttk.Button(btn_row, text="Sign out", style="Secondary.TButton", command=do_logout).pack(
+        ttk.Combobox(
+            card,
+            textvariable=v["capability"],
+            values=["supplier", "buyer", "both"],
+            state="readonly",
+            width=18,
+        ).grid(row=len(rows), column=1, sticky=tk.W, pady=6)
+
+        def do_signup() -> None:
+            url = self._api_url.get().strip() or "http://127.0.0.1:8000/api/v1"
+            save_config({"api_base_url": url})
+            self.api = ReBuildApiClient(url)
+
+            pw, pw2 = v["password"].get(), v["confirm"].get()
+            if pw != pw2:
+                messagebox.showerror("Passwords", "Password and confirm do not match.")
+                return
+            email = v["email"].get().strip()
+            mobile = v["mobile"].get().strip()
+            if not all(
+                [
+                    v["full_name"].get().strip(),
+                    email,
+                    mobile,
+                    v["company_name"].get().strip(),
+                    v["address"].get().strip(),
+                    v["city"].get().strip(),
+                ]
+            ):
+                messagebox.showerror("Missing fields", "Fill in all required fields.")
+                return
+
+            cap = v["capability"].get()
+            try:
+                self.config(cursor="watch")
+                self.api.register_user(v["full_name"].get().strip(), email, mobile, pw)
+                self.api.create_company(
+                    {
+                        "company_name": v["company_name"].get().strip(),
+                        "business_email": email,
+                        "phone_number": mobile,
+                        "address": v["address"].get().strip(),
+                        "city": v["city"].get().strip(),
+                        "state": v["state"].get().strip(),
+                        "country": v["country"].get().strip(),
+                        "postal_code": "000000",
+                        "is_supplier": cap != "buyer",
+                        "is_buyer": cap != "supplier",
+                    }
+                )
+                self.api.me()
+                self._categories = self.api.list_categories()
+            except ApiError as exc:
+                messagebox.showerror("Registration failed", str(exc))
+                return
+            finally:
+                self.config(cursor="")
+
+            save_session(
+                {
+                    "access_token": self.api.access_token,
+                    "refresh_token": self.api.refresh_token,
+                    "email": email,
+                }
+            )
+            self._user_email.set(email)
+            self._login_email.set(email)
+            self._enter_main_app()
+
+        btn = ttk.Frame(card, style="Card.TFrame")
+        btn.grid(row=len(rows) + 1, column=1, sticky=tk.E, pady=(16, 0))
+        ttk.Button(btn, text="Create account", style="Primary.TButton", command=do_signup).pack(
             side=tk.RIGHT
         )
+
+        ttk.Label(
+            inner,
+            text="Already have an account? Open the Sign in tab.",
+            style="Muted.TLabel",
+        ).pack(anchor=tk.W, pady=(12, 0))
+
+    def _init_api_client(self) -> None:
+        self.api = ReBuildApiClient(self._api_url.get().strip())
+        session = load_session()
+        if session:
+            self.api.load_tokens(session.get("access_token"), session.get("refresh_token"))
+            if session.get("email"):
+                self._user_email.set(session["email"])
+                self._login_email.set(session["email"])
+            try:
+                self.api.me()
+                self._categories = self.api.list_categories()
+            except ApiError:
+                save_session(None)
+                self.api.load_tokens(None, None)
+                self._user_email.set("Not signed in")
+
+    def _is_logged_in(self) -> bool:
+        return bool(self.api and self.api.access_token)
+
+    def _require_login(self) -> bool:
+        if self._is_logged_in():
+            return True
+        messagebox.showwarning("Session expired", "Please sign in again.")
+        self._logout()
+        return False
 
     def _build_status_bar(self) -> None:
         ttk.Label(self, textvariable=self.status, style="Status.TLabel").pack(
