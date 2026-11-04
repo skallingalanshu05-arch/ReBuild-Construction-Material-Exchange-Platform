@@ -1,0 +1,11 @@
+from enum import Enum
+
+
+class RequestStatus(str, Enum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    NEGOTIATION = "NEGOTIATION"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+    COMPLETED = "COMPLETED"
