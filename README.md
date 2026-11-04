@@ -4,8 +4,9 @@ Monorepo for the **ReBuild** digital platform for resource reuse and matching (c
 
 | Package | Path | Stack |
 |--------|------|--------|
-| **Frontend** | [`frontend/`](./frontend/) | Vite, TanStack Start/Router, React, Tailwind |
+| **Frontend (web)** | [`frontend/`](./frontend/) | Vite, TanStack Start/Router, React, Tailwind |
 | **Backend API** | [`backend/`](./backend/) | FastAPI, MongoDB, JWT |
+| **Desktop (Tkinter)** | [`desktop/`](./desktop/) | Python Tkinter — offline matching demo |
 
 The UI is based on [pixel-perfect-replica](https://github.com/skallingalanshu05-arch/pixel-perfect-replica) and lives under `frontend/`.
 
@@ -42,13 +43,22 @@ npm install          # installs frontend workspace dependencies
 npm run dev:frontend
 ```
 
+### Desktop (Tkinter)
+
+```bash
+python desktop/app.py
+```
+
+Offline matching demo—no `pip install` required. See [`desktop/README.md`](./desktop/README.md).
+
 ## Repository layout
 
 ```
 .
 ├── frontend/          # React app (pixel-perfect-replica)
 ├── backend/           # FastAPI REST API
-├── index.py           # Legacy CLI prototype (optional)
+├── desktop/           # Tkinter desktop app (mini-project / offline)
+├── index.py           # Legacy CLI prototype (same matching logic)
 ├── package.json       # npm workspaces root
 └── README.md
 ```
