@@ -9,12 +9,13 @@ function Page() {
     <ResourcePage
       title="My requests"
       subtitle="Requests you've sent to suppliers."
-      endpoint="/requests/outgoing"
+      endpoint="/requests"
+      params={{ role: "buyer" }}
       columns={[
-        { key: "material_title", label: "Material" },
-        { key: "supplier_company", label: "Supplier" },
-        { key: "quantity", label: "Qty" },
-        { key: "status", label: "Status" },
+        { key: "material_id", label: "Material" },
+        { key: "supplier_company_id", label: "Supplier" },
+        { key: "requested_quantity", label: "Qty" },
+        { key: "request_status", label: "Status" },
         { key: "created_at", label: "Sent" },
         { key: "actions", label: "", render: (r) => <RequestActions row={r} role="buyer" /> },
       ]}

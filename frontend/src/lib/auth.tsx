@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await api.post("/auth/logout");
+      await api.post("/auth/logout", { refresh_token: tokenStore.refresh });
     } catch {
       /* ignore */
     }

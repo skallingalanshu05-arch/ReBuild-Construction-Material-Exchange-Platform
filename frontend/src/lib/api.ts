@@ -1,11 +1,13 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { normaliseQueryParams } from "./backend-map";
 
 /**
- * Backend base URL comes from VITE_API_BASE_URL (e.g. http://localhost:8000/api/v1).
- * When it is not set, the app runs in "not connected" mode: every page renders,
- * and data areas explain which endpoint they are waiting for.
+ * Backend base URL: set VITE_API_BASE_URL (e.g. http://localhost:8000/api/v1).
+ * In dev, defaults to /api/v1 and Vite proxies to the FastAPI server.
  */
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
+const envBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+export const API_BASE_URL =
+  envBase && envBase.length > 0 ? envBase : import.meta.env.DEV ? "/api/v1" : "";
 export const isApiConfigured = API_BASE_URL.length > 0;
 
 const ACCESS_KEY = "rebuild.access";
@@ -37,13 +39,30 @@ export class ApiNotConfiguredError extends Error {
   }
 }
 
+type ApiEnvelope<T = unknown> = { success?: boolean; message?: string; data?: T };
+
+function unwrapEnvelope<T>(body: unknown): T {
+  if (body && typeof body === "object" && "success" in body && "data" in body) {
+    return (body as ApiEnvelope<T>).data as T;
+  }
+  return body as T;
+}
+
 export const api = axios.create({ baseURL: API_BASE_URL || undefined, withCredentials: true });
 
 api.interceptors.request.use((config) => {
   if (!isApiConfigured) throw new ApiNotConfiguredError();
+  if (config.params && typeof config.params === "object") {
+    config.params = normaliseQueryParams(config.params as Record<string, unknown>);
+  }
   const t = tokenStore.access;
   if (t) config.headers.Authorization = `Bearer ${t}`;
   return config;
+});
+
+api.interceptors.response.use((response) => {
+  response.data = unwrapEnvelope(response.data);
+  return response;
 });
 
 let refreshing: Promise<string | null> | null = null;
@@ -56,12 +75,12 @@ api.interceptors.response.use(
     const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
     if (error.response?.status === 401 && original && !original._retry && !original.url?.includes("/auth/")) {
       original._retry = true;
-      // ASSUMED endpoint: POST /auth/refresh { refresh_token } -> { access_token, refresh_token? }
       refreshing ??= axios
         .post(`${API_BASE_URL}/auth/refresh`, { refresh_token: tokenStore.refresh }, { withCredentials: true })
         .then((r) => {
-          tokenStore.set(r.data.access_token, r.data.refresh_token, !!localStorage.getItem(ACCESS_KEY));
-          return r.data.access_token as string;
+          const tokens = unwrapEnvelope<{ access_token: string; refresh_token?: string }>(r.data);
+          tokenStore.set(tokens.access_token, tokens.refresh_token, !!localStorage.getItem(ACCESS_KEY));
+          return tokens.access_token;
         })
         .catch(() => null)
         .finally(() => (refreshing = null));
@@ -80,10 +99,14 @@ api.interceptors.response.use(
 export function errorMessage(e: unknown): string {
   if (e instanceof ApiNotConfiguredError) return e.message;
   if (axios.isAxiosError(e)) {
-    const d = e.response?.data as { detail?: unknown } | undefined;
+    const d = e.response?.data as { message?: string; detail?: unknown; errors?: { msg?: string }[] } | undefined;
+    if (typeof d?.message === "string" && d.message) return d.message;
     if (typeof d?.detail === "string") return d.detail;
     if (Array.isArray(d?.detail)) return d.detail.map((x: { msg?: string }) => x.msg).join(", ");
-    if (!e.response) return "Can't reach the server. Check your connection.";
+    if (Array.isArray(d?.errors) && d.errors.length) {
+      return d.errors.map((x) => x.msg ?? JSON.stringify(x)).join(", ");
+    }
+    if (!e.response) return "Can't reach the server. Check your connection and that the API is running.";
     return `Request failed (${e.response.status}).`;
   }
   return e instanceof Error ? e.message : "Something went wrong.";

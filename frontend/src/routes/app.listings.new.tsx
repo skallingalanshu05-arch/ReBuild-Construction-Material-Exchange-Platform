@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useList } from "@/components/common/DataState";
-import { api, errorMessage } from "@/lib/api";
+import { api, errorMessage, tokenStore } from "@/lib/api";
+import { buildMaterialCreatePayload } from "@/lib/backend-map";
 
 export const Route = createFileRoute("/app/listings/new")({ component: Page });
 
@@ -35,8 +36,8 @@ function Page() {
   const { register, handleSubmit, formState } = useForm<V>({ resolver: zodResolver(schema), defaultValues: { condition: "good" } });
   const onSubmit = handleSubmit(async (v) => {
     try {
-      await api.post("/materials", v);
-      qc.invalidateQueries({ queryKey: ["/materials/mine"] });
+      await api.post("/materials", buildMaterialCreatePayload(v));
+      qc.invalidateQueries({ queryKey: ["/materials/my-listings"] });
       toast.success("Material listed");
       navigate({ to: "/app/listings" });
     } catch (e) {

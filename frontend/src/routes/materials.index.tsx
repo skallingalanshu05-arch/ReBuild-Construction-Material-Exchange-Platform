@@ -65,7 +65,7 @@ function Explore() {
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <ListState<Material>
           endpoint="/materials"
-          params={{ search: search.q, city: search.city, condition: search.condition, status: "active" }}
+          params={{ q: search.q, city: search.city, condition: search.condition }}
           emptyTitle="No materials match"
           emptyHint="Try a broader search or another city."
         >

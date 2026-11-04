@@ -12,7 +12,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { materialCategory, materialCity, materialName, type Material } from "@/components/cards/MaterialCard";
+import {
+  materialCategory,
+  materialCity,
+  materialConditionLabel,
+  materialDescription,
+  materialImages,
+  materialName,
+  materialPrice,
+  materialQuantity,
+  type Material,
+} from "@/components/cards/MaterialCard";
+import { buildMaterialRequestPayload } from "@/lib/backend-map";
 
 export const Route = createFileRoute("/materials/$id")({
   head: () => ({
@@ -33,7 +44,7 @@ function Detail() {
   const [qty, setQty] = useState("");
   const [msg, setMsg] = useState("");
   const send = useMutation({
-    mutationFn: () => api.post("/requests", { material_id: id, quantity: Number(qty), message: msg }),
+    mutationFn: () => api.post("/requests", buildMaterialRequestPayload(id, Number(qty), msg)),
     onSuccess: () => {
       toast.success("Request sent to the supplier");
       setQty("");
@@ -60,7 +71,7 @@ function Detail() {
             <div>
               <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-muted grid-lines">
                 {m.images?.[0] ?? m.image_url ? (
-                  <img src={(m.images?.[0] ?? m.image_url) as string} alt={materialName(m)} className="size-full object-cover" />
+                  <img src={(materialImages(m)?.[0] ?? m.image_url) as string} alt={materialName(m)} className="size-full object-cover" />
                 ) : (
                   <div className="grid size-full place-items-center"><Boxes className="size-14 text-secondary/30" /></div>
                 )}
@@ -68,15 +79,15 @@ function Detail() {
               <h1 className="mt-6 text-3xl font-bold text-primary">{materialName(m)}</h1>
               <div className="mt-3 flex flex-wrap gap-2">
                 {materialCategory(m) && <Badge className="border-0 bg-leaf-soft text-primary">{materialCategory(m)}</Badge>}
-                {m.condition && <Badge variant="outline" className="capitalize">{m.condition}</Badge>}
+                {materialConditionLabel(m) && <Badge variant="outline" className="capitalize">{materialConditionLabel(m)}</Badge>}
                 {materialCity(m) && <span className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="size-4" />{materialCity(m)}</span>}
               </div>
-              {m.description && <p className="mt-6 leading-relaxed text-muted-foreground">{m.description}</p>}
+              {materialDescription(m) && <p className="mt-6 leading-relaxed text-muted-foreground">{materialDescription(m)}</p>}
             </div>
             <aside className="h-fit rounded-2xl border bg-card p-6 shadow-card">
               <p className="text-sm text-muted-foreground">Available</p>
-              <p className="font-display text-3xl font-bold">{m.quantity ?? "—"} <span className="text-lg">{m.unit}</span></p>
-              {m.price != null && <p className="mt-1 text-secondary">₹{m.price} / {m.unit ?? "unit"}</p>}
+              <p className="font-display text-3xl font-bold">{materialQuantity(m) ?? "—"} <span className="text-lg">{m.unit}</span></p>
+              {materialPrice(m) != null && <p className="mt-1 text-secondary">₹{materialPrice(m)} / {m.unit ?? "unit"}</p>}
               <div className="mt-6 space-y-3">
                 {user ? (
                   <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); if (!qty) return toast.error("Enter a quantity"); send.mutate(); }}>

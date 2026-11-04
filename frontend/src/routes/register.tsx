@@ -7,7 +7,8 @@ import { AuthLayout, FieldError } from "@/components/layout/AuthLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { api, errorMessage } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { api, errorMessage, tokenStore } from "@/lib/api";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -48,13 +49,33 @@ const fields: [keyof V, string, string?][] = [
 
 function Register() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const { register, handleSubmit, formState } = useForm<V>({ resolver: zodResolver(schema), defaultValues: { capability: "both", country: "India" } });
-  const onSubmit = handleSubmit(async ({ confirm: _c, ...v }) => {
+  const onSubmit = handleSubmit(async ({ confirm: _c, mobile, capability, ...rest }) => {
     try {
-      // ASSUMED endpoint: POST /auth/register
-      await api.post("/auth/register", v);
-      toast.success("Account created — please sign in");
-      navigate({ to: "/login" });
+      const { data: tokens } = await api.post<{ access_token: string; refresh_token: string }>("/auth/register", {
+        full_name: rest.full_name,
+        email: rest.email,
+        mobile_number: mobile,
+        password: rest.password,
+      });
+      tokenStore.set(tokens.access_token, tokens.refresh_token, true);
+      await api.post("/companies", {
+        company_name: rest.company_name,
+        registration_number: rest.registration_number || undefined,
+        business_email: rest.email,
+        phone_number: mobile,
+        address: rest.address,
+        city: rest.city,
+        state: rest.state,
+        country: rest.country,
+        postal_code: "000000",
+        is_supplier: capability !== "buyer",
+        is_buyer: capability !== "supplier",
+      });
+      await refreshUser();
+      toast.success("Welcome to ReBuild");
+      navigate({ to: "/app" });
     } catch (e) {
       toast.error(errorMessage(e));
     }

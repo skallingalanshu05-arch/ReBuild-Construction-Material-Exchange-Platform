@@ -23,4 +23,4 @@ bun install   # or npm install
 bun run dev   # or npm run dev
 ```
 
-Set `VITE_API_BASE_URL` in `.env` (see `.env.example`) to point at the FastAPI backend.
+Set `VITE_API_BASE_URL` in `.env` (see `.env.example`) when not using the Vite dev proxy; otherwise the app calls `/api/v1` on the same origin.

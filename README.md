@@ -33,7 +33,7 @@ bun install   # or: npm install
 bun run dev   # or: npm run dev
 ```
 
-Set `VITE_API_BASE_URL=http://localhost:8000/api/v1` in `frontend/.env` to connect to the API.
+Set `VITE_API_BASE_URL=http://localhost:8000/api/v1` in `frontend/.env` if you are not using the Vite dev proxy (default in dev is `/api/v1` → `http://127.0.0.1:8000`).
 
 ### From repo root
 

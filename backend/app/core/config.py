@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     password_reset_token_expire_hours: int = 24
 
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
 
     auth_rate_limit: str = "5/minute"
 
