@@ -25,9 +25,11 @@ python3 desktop/app.py
 
 ## Tabs
 
-1. **Register surplus** — add supplier listings  
-2. **Search & match** — enter a requirement and see ranked matches  
-3. **All listings** — view or clear registered materials  
+1. **Register surplus** — card-style form to add supplier listings  
+2. **Search & match** — requirement form, color-coded results (green / amber / red by score)  
+3. **All listings** — inventory table with refresh and clear  
+
+The UI uses ReBuild brand colors (deep green header, leaf accent, light background).
 
 ## Full stack (optional)
 
