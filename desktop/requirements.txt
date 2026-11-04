@@ -1,0 +1,2 @@
+# Desktop uses Python stdlib only (urllib). No install required for the GUI.
+# Run the backend separately — see backend/requirements.txt

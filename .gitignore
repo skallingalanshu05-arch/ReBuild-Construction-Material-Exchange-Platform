@@ -22,3 +22,7 @@ frontend/.tanstack/
 
 # Bun
 .bun/
+
+# Desktop local config / tokens
+desktop/session.json
+desktop/config.json

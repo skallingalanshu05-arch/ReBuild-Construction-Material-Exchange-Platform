@@ -1,36 +1,64 @@
-# ReBuild Desktop (Tkinter)
+# Pixel Perfect Replica — desktop Tkinter client
 
-Desktop GUI for the **mini-project matching workflow**: register surplus C&D materials, search requirements, and view compatibility scores. Uses the same scoring logic as the root `index.py` CLI.
-
-This is separate from the **web frontend** (`frontend/`) and **FastAPI backend** (`backend/`). It runs offline with in-memory data—ideal for demos and coursework that require Tkinter.
+Offline-capable UI that connects to the **ReBuild FastAPI backend** so listings are stored in **MongoDB**.
 
 ## Requirements
 
-- Python **3.11+** with **Tk** (standard on Windows Python from python.org)
-- No `pip install` needed for the desktop app
+- Python **3.11+** with Tkinter
+- **Backend running** (`backend/` — `python run.py`)
+- **MongoDB** running (local or Atlas in `backend/.env`)
+- A **user account** with a **company** (register on web or API — supplier capability)
 
-## Run (Windows)
+## Setup
+
+1. Start MongoDB and the API:
 
 ```powershell
-cd "C:\Users\VICTUS\Desktop\Mini Project\ReBuild-Construction-Material-Exchange-Platform"
+cd backend
+.\.venv\Scripts\python.exe run.py
+```
+
+2. Copy config (optional — default URL is fine on same PC):
+
+```powershell
+cd desktop
+copy config.example.json config.json
+```
+
+3. Run the desktop app:
+
+```powershell
 python desktop\app.py
 ```
 
-## Run (macOS / Linux)
+4. Open the **Account** tab → confirm API URL → **Sign in** with your ReBuild email/password.
 
-```bash
-cd ReBuild-Construction-Material-Exchange-Platform
-python3 desktop/app.py
-```
+## Where data is stored
+
+| Action | Storage |
+|--------|---------|
+| **Save listing** | `POST /materials` → MongoDB `materials` collection |
+| **All listings** | `GET /materials/my-listings` (your company) |
+| **Search & match** | `GET /materials` (active listings on platform) + local scoring |
+| **Session token** | `desktop/session.json` (local file, not committed) |
+
+## Material types → MongoDB
+
+Fixed types (Window frame, Door frame, Steel, Brick, Aggregate) map to seeded **categories** and API units (`PIECE`, `TONNE`, `KG`, `CUBIC_METER`).
 
 ## Tabs
 
-1. **Register surplus** — card-style form to add supplier listings  
-2. **Search & match** — requirement form, color-coded results (green / amber / red by score)  
-3. **All listings** — inventory table with refresh and clear  
+1. **Account** — API URL, sign in/out  
+2. **Register surplus** — saves to MongoDB (requires sign-in)  
+3. **Search & match** — loads listings from API  
+4. **All listings** — your company's rows from MongoDB  
 
-The UI uses ReBuild brand colors (deep green header, leaf accent, light background).
+| Material | Default unit |
+|----------|----------------|
+| Window frame | nos (pieces) |
+| Door frame | nos (pieces) |
+| Steel | ton or kg (dropdown) |
+| Brick | nos (pieces) |
+| Aggregate | m³ (cubic metre) |
 
-## Full stack (optional)
-
-For the production web app + API, use `backend/` and `frontend/` as described in the root [README](../README.md).
+Choosing a type updates the quantity label and unit automatically.

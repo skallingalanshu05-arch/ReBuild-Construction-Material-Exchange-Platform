@@ -30,6 +30,7 @@ class MaterialListing:
     project: str
     material: str
     quantity: float
+    unit: str
     condition: str
     location: str
     availability: str
@@ -40,6 +41,7 @@ class MaterialRequirement:
     project: str
     material: str
     quantity: float
+    unit: str
     condition: str
     location: str
 
@@ -113,6 +115,10 @@ def find_matches(
             continue
 
         notes: List[str] = []
+        if supplier.unit != requirement.unit:
+            notes.append(
+                f"Units differ (supplier: {supplier.unit}, required: {requirement.unit}) — compare manually."
+            )
         if supplier.quantity < requirement.quantity:
             notes.append("Available quantity is less than required.")
         if CONDITION_RANK[normalise_condition(supplier.condition)] < CONDITION_RANK[
