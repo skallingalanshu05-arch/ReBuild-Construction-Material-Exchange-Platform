@@ -66,8 +66,27 @@ class ReBuildApiClient:
             message = f"HTTP {exc.code}"
             try:
                 payload = json.loads(exc.read().decode("utf-8"))
-                if isinstance(payload, dict) and payload.get("message"):
-                    message = str(payload["message"])
+                if isinstance(payload, dict):
+                    message = str(payload.get("message") or message)
+                    errors = payload.get("errors")
+                    if isinstance(errors, list) and errors:
+                        parts: List[str] = []
+                        for err in errors:
+                            if not isinstance(err, dict):
+                                continue
+                            loc = err.get("loc")
+                            field = loc[-1] if isinstance(loc, list) and loc else ""
+                            msg = str(err.get("msg") or "")
+                            if field and field not in ("body",):
+                                parts.append(f"{field}: {msg}")
+                            elif msg:
+                                parts.append(msg)
+                        if parts:
+                            detail = "; ".join(parts)
+                            if message.lower() == "validation error":
+                                message = detail
+                            else:
+                                message = f"{message} ({detail})"
             except (json.JSONDecodeError, OSError):
                 pass
             raise ApiError(message, status=exc.code) from exc

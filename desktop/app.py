@@ -7,6 +7,7 @@ Run from repo root:
 
 from __future__ import annotations
 
+import re
 import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Dict, List, Optional
@@ -43,6 +44,8 @@ from theme import (
     configure_tree_tags,
     score_tag,
 )
+
+_PASSWORD_STRENGTH = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$")
 
 
 class ReBuildApp(tk.Tk):
@@ -332,10 +335,31 @@ class ReBuildApp(tk.Tk):
                 messagebox.showerror("Missing fields", "Fill in all required fields.")
                 return
 
+            name = v["full_name"].get().strip()
+            if len(name) < 2:
+                messagebox.showerror("Invalid name", "Full name must be at least 2 characters.")
+                return
+            if len(mobile) < 8 or len(mobile) > 20:
+                messagebox.showerror(
+                    "Invalid mobile",
+                    "Mobile number must be 8–20 characters (digits, e.g. 9876543210).",
+                )
+                return
+            if len(pw) < 8 or not _PASSWORD_STRENGTH.match(pw):
+                messagebox.showerror(
+                    "Invalid password",
+                    "Password must be at least 8 characters and include "
+                    "uppercase, lowercase, and a number (e.g. SecurePass1).",
+                )
+                return
+            if len(v["company_name"].get().strip()) < 2:
+                messagebox.showerror("Invalid company", "Company name must be at least 2 characters.")
+                return
+
             cap = v["capability"].get()
             try:
                 self.config(cursor="watch")
-                self.api.register_user(v["full_name"].get().strip(), email, mobile, pw)
+                self.api.register_user(name, email, mobile, pw)
                 self.api.create_company(
                     {
                         "company_name": v["company_name"].get().strip(),
