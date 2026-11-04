@@ -33,6 +33,10 @@ backend/
 
 ## Setup
 
+Use **Python 3.11 or 3.12** (recommended). Python 3.15+ often breaks dependency installs on Windows.
+
+### macOS / Linux
+
 ```bash
 cd backend
 python3.11 -m venv .venv
@@ -40,6 +44,30 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your MongoDB URL and JWT secret
+```
+
+### Windows (PowerShell)
+
+```powershell
+cd backend
+# Prefer 3.12 if installed: py -3.12 -m venv .venv
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+copy .env.example .env
+python run.py
+```
+
+You must see `(.venv)` in the prompt **before** `pip install` and `python run.py`. Installing without activating the venv puts packages on the wrong Python and `uvicorn` will not be found.
+
+If `Activate.ps1` is blocked: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+Verify the venv is active:
+
+```powershell
+python -c "import sys; print(sys.executable)"
+# Should end with ...\backend\.venv\Scripts\python.exe
 ```
 
 ### MongoDB
