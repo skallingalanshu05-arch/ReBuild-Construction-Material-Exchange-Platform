@@ -14,12 +14,25 @@ The UI is based on [pixel-perfect-replica](https://github.com/skallingalanshu05-
 
 ### Backend
 
+**macOS / Linux**
+
 ```bash
 cd backend
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+python run.py
+```
+
+**Windows (PowerShell or CMD)**
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
 python run.py
 ```
 
