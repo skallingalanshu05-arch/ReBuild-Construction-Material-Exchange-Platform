@@ -19,7 +19,7 @@ from backend_map import (
     doc_to_listing,
     listing_matches_type,
 )
-from config import load_config, load_session, save_config, save_session
+from config import DEFAULT_API_BASE, load_config, load_session, save_session
 from matching import (
     AVAILABILITY_OPTIONS,
     CONDITION_RANK,
@@ -61,7 +61,6 @@ class ReBuildApp(tk.Tk):
         self._match_notes: Dict[str, str] = {}
         self._style = apply_theme(self)
         self._user_email = tk.StringVar(value="Not signed in")
-        self._api_url = tk.StringVar(value=load_config().get("api_base_url", "http://127.0.0.1:8000/api/v1"))
 
         self.api: Optional[ReBuildApiClient] = None
 
@@ -128,7 +127,7 @@ class ReBuildApp(tk.Tk):
         self._header_logout.pack_forget()
         self.listing_count.set("")
         self.auth_frame.pack(fill=tk.BOTH, expand=True)
-        self.status.set("Sign in or register — backend must be running with MongoDB")
+        self.status.set("Sign in or register to continue")
         self.title("ReBuild — Sign in")
 
     def _show_main_screen(self) -> None:
@@ -142,7 +141,7 @@ class ReBuildApp(tk.Tk):
         self._refresh_inventory_tree()
         email = self._user_email.get()
         self.listing_count.set(email if email else "Signed in")
-        self.status.set("Signed in — data is saved in MongoDB")
+        self.status.set("Signed in")
         if not silent:
             messagebox.showinfo("Welcome", f"Signed in as {email}")
 
@@ -164,14 +163,10 @@ class ReBuildApp(tk.Tk):
         ).pack(anchor=tk.W, pady=(0, 4))
         ttk.Label(
             parent,
-            text="Create an account or sign in. Your listings are stored in MongoDB through the API.",
+            text="Create an account or sign in to list surplus materials and find matches.",
             style="Muted.TLabel",
             wraplength=880,
         ).pack(anchor=tk.W, pady=(0, 12))
-
-        conn = self._card(parent, "Backend connection")
-        conn.pack(fill=tk.X, pady=(0, 10))
-        self._form_field(conn, 0, "API base URL", ttk.Entry(conn, textvariable=self._api_url, width=48))
 
         self.auth_notebook = ttk.Notebook(parent)
         self.auth_notebook.pack(fill=tk.BOTH, expand=True)
@@ -201,12 +196,7 @@ class ReBuildApp(tk.Tk):
         )
 
         def do_login() -> None:
-            url = self._api_url.get().strip()
-            if not url:
-                messagebox.showerror("Invalid URL", "Enter the API base URL.")
-                return
-            save_config({"api_base_url": url})
-            self.api = ReBuildApiClient(url)
+            self.api = ReBuildApiClient(self._api_base_url())
             email = self._login_email.get().strip()
             try:
                 self.config(cursor="watch")
@@ -312,9 +302,7 @@ class ReBuildApp(tk.Tk):
         ).grid(row=len(rows), column=1, sticky=tk.W, pady=6)
 
         def do_signup() -> None:
-            url = self._api_url.get().strip() or "http://127.0.0.1:8000/api/v1"
-            save_config({"api_base_url": url})
-            self.api = ReBuildApiClient(url)
+            self.api = ReBuildApiClient(self._api_base_url())
 
             pw, pw2 = v["password"].get(), v["confirm"].get()
             if pw != pw2:
@@ -405,8 +393,12 @@ class ReBuildApp(tk.Tk):
             style="Muted.TLabel",
         ).pack(anchor=tk.W, pady=(12, 0))
 
+    def _api_base_url(self) -> str:
+        url = load_config().get("api_base_url") or DEFAULT_API_BASE
+        return str(url).strip() or DEFAULT_API_BASE
+
     def _init_api_client(self) -> None:
-        self.api = ReBuildApiClient(self._api_url.get().strip())
+        self.api = ReBuildApiClient(self._api_base_url())
         session = load_session()
         if session:
             self.api.load_tokens(session.get("access_token"), session.get("refresh_token"))
@@ -772,7 +764,7 @@ class ReBuildApp(tk.Tk):
             self.match_notes.configure(state=tk.DISABLED)
 
             if not self.api:
-                messagebox.showinfo("No API", "Set the API URL on the Account tab and ensure the backend is running.")
+                messagebox.showinfo("Not connected", "Please sign in to search listings.")
                 return
 
             try:

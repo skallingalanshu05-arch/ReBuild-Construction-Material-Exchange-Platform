@@ -127,23 +127,285 @@ The project folder contains **three ways** to use the same ReBuild idea:
 
 ---
 
-## 7. Folder map (what to say in a viva)
+## 7. Complete folder structure (updated)
+
+This is the **map of the project folder** on your computer or GitHub. You do not need to open every file — but in a viva you can point to **where** login, matching, and listings live.
+
+### 7.1 Big picture
 
 ```text
 ReBuild-Construction-Material-Exchange-Platform/
-├── frontend/          → Web UI (React)
-├── backend/           → API + matching + database logic (FastAPI + MongoDB)
-├── desktop/           → Tkinter desktop client (connects to backend)
-├── index.py           → Original CLI matching prototype
-├── README.md          → Developer setup (install, run commands)
-└── PROJECT_GUIDE_FOR_CIVIL_ENGINEERS.md  → This file
+│
+├── README.md                          → How developers install and run everything
+├── PROJECT_GUIDE_FOR_CIVIL_ENGINEERS.md → This guide (non-coder friendly)
+├── package.json                       → Root script to start the website from one command
+├── index.py                           → Old text-only demo (matching in the terminal)
+│
+├── backend/                           → Server + database logic (Python)
+├── frontend/                          → Website in the browser (React)
+└── desktop/                           → Small desktop window app (Python + Tkinter)
 ```
 
-You **do not** need to memorize code inside these folders. For civil engineering focus, emphasize: **problem, data collected, matching criteria, sustainability, and user workflow**.
+**Analogy:** One construction **project site** (`ReBuild-…-Platform/`) with three **sub-contractors**: `backend` (office + records), `frontend` (client-facing showroom), `desktop` (site kiosk).
 
 ---
 
-## 8. What data the system cares about (field checklist)
+### 7.2 Root files (top level)
+
+| File / folder | What it does |
+|---------------|--------------|
+| `README.md` | Step-by-step setup: Python venv, `pip install`, MongoDB, run server and website. |
+| `PROJECT_GUIDE_FOR_CIVIL_ENGINEERS.md` | Plain-language explanation for civil students (you are here). |
+| `package.json` | Lists npm scripts; e.g. `npm run dev:frontend` starts the web app from repo root. |
+| `index.py` | **First mini-project version:** no browser, no database — you type answers in a black terminal window and see match scores. |
+| `.gitignore` | Tells Git which files **not** to upload (passwords, local `.env`, virtual env folder). |
+
+---
+
+### 7.3 Backend folder (`backend/`)
+
+The **server** that saves data and calculates matches. Everything under `backend/app/` is the main application.
+
+```text
+backend/
+├── run.py                 → START button for the server (runs on port 8000)
+├── requirements.txt       → Shopping list for pip (FastAPI, uvicorn, MongoDB driver, …)
+├── .env.example           → Sample settings (database URL, secrets); copy to `.env`
+├── pytest.ini             → Settings for automated tests
+├── README.md              → Backend-specific notes for developers
+│
+├── scripts/
+│   └── create_admin.py    → One-time tool to create an admin user
+│
+├── tests/                 → Automatic checks that login, materials, matching work
+│   ├── test_auth.py
+│   ├── test_materials.py
+│   ├── test_matching.py
+│   └── …
+│
+└── app/
+    ├── main.py            → App entry: wires routes, CORS, startup
+    │
+    ├── core/              → Rules of the house
+    │   ├── config.py      → Reads `.env` (MongoDB URL, JWT secret, …)
+    │   ├── security.py    → Password hashing, JWT tokens
+    │   ├── permissions.py → Who can do what (admin vs company user)
+    │   └── exceptions.py  → Standard error messages
+    │
+    ├── database/
+    │   ├── connection.py  → Connects to MongoDB
+    │   ├── seed.py        → Fills initial categories (brick, steel, …)
+    │   └── indexes.py     → Speeds up searches in the database
+    │
+    ├── models/            → **Shape of stored records** (like blank forms in the register)
+    │   ├── user.py        → User accounts
+    │   ├── company.py     → Construction companies
+    │   ├── material.py    → Surplus listings
+    │   ├── requirement.py → Buyer needs
+    │   ├── project.py     → Job sites linked to listings
+    │   ├── request.py     → “We want this material” messages
+    │   ├── match.py       → Match result types / labels
+    │   └── …
+    │
+    ├── schemas/           → **Validation** for data coming in/out of the API (checked fields)
+    │
+    ├── services/          → **Business logic** (the real work)
+    │   ├── matching_service.py  → ⭐ Scoring algorithm (type, qty, condition, location, time)
+    │   ├── material_service.py  → Create/update listings
+    │   ├── auth_service.py      → Register, login, tokens
+    │   ├── request_service.py   → Material requests between companies
+    │   └── …
+    │
+    ├── api/
+    │   ├── deps.py        → “Is this user logged in?” helpers
+    │   └── v1/
+    │       ├── router.py  → Connects all URL groups
+    │       └── endpoints/ → One file per feature area
+    │           ├── auth.py
+    │           ├── materials.py
+    │           ├── requirements.py
+    │           ├── matches.py
+    │           ├── requests.py
+    │           ├── companies.py
+    │           └── …
+    │
+    └── utils/             → Small shared helpers (pagination, IDs, API responses)
+```
+
+**For your report:** Say that **`matching_service.py`** implements the civil-engineering-relevant **decision logic**; **`materials.py` / `requirements.py`** are the API “counters” where listings and needs are submitted.
+
+---
+
+### 7.4 Frontend folder (`frontend/`)
+
+The **website** users see in Chrome/Edge. Built with **React** (many reusable UI pieces).
+
+```text
+frontend/
+├── package.json           → Website dependencies; scripts: `dev`, `build`, `test`
+├── vite.config.ts         → Dev server (often http://localhost:5173)
+├── .env.example           → Example: API URL for the browser
+├── public/                → Static files (favicon, robots.txt)
+│
+└── src/
+    ├── routes/            → ⭐ One file ≈ one page/screen
+    │   ├── index.tsx          → Home page (“Give materials a second life”)
+    │   ├── login.tsx          → Sign in
+    │   ├── register.tsx       → Company registration
+    │   ├── materials.index.tsx → Browse public listings
+    │   ├── app.listings.new.tsx → Add surplus listing (after login)
+    │   ├── app.requirements.tsx → Post what you need
+    │   ├── app.matches.tsx      → View match results
+    │   ├── app.requests.tsx     → Outgoing / incoming requests
+    │   └── app.*.tsx            → Profile, projects, messages, admin, …
+    │
+    ├── components/
+    │   ├── layout/        → Header, shell, logo (same frame on every page)
+    │   ├── cards/         → Material cards on browse pages
+    │   ├── common/        → Tables, loading states, shared buttons
+    │   └── ui/            → Buttons, inputs, dialogs (design system)
+    │
+    ├── lib/
+    │   ├── api.ts         → Talks to backend (HTTP requests)
+    │   ├── auth.tsx       → Login state in the browser
+    │   └── backend-map.ts → Converts form values to API format
+    │
+    └── styles.css         → Colours, fonts (ReBuild branding)
+```
+
+**For your report:** **`routes/`** = user journey screens; **`lib/api.ts`** = link between showroom and head office (`backend`).
+
+---
+
+### 7.5 Desktop folder (`desktop/`)
+
+Simpler **Windows-style app** for lab demos (sign in → register surplus → search → your listings).
+
+| File | What it does |
+|------|----------------|
+| `app.py` | Main window: login, tabs, forms, tables — **run this** with `python desktop/app.py` |
+| `api_client.py` | Sends login and listing data to the backend over the network |
+| `matching.py` | Local match scoring for the Search tab (works with listing data from server) |
+| `material_types.py` | Dropdown list: brick, steel, frames, aggregate, units (nos, tonne, m³) |
+| `backend_map.py` | Converts desktop form labels to the same format the API expects |
+| `config.py` | Reads/writes `config.json` (server address, default localhost) |
+| `config.example.json` | Sample config file |
+| `theme.py` | Colours and fonts (ReBuild green / professional look) |
+| `requirements.txt` | Extra Python packages for desktop (if any beyond standard library) |
+| `README.md` | How to run desktop with backend + MongoDB |
+
+**Note:** The sign-in screen **no longer shows** a “Backend connection” URL box. The app uses the default server address automatically (or `desktop/config.json` if your teammate edits it).
+
+---
+
+### 7.6 What you can skip as a civil student
+
+| You can ignore (unless asked) | Why |
+|-------------------------------|-----|
+| `frontend/src/components/ui/*` (dozens of files) | Reusable button/input styling — not project logic |
+| `frontend/bun.lock`, `node_modules/` | Machine-generated install files |
+| `backend/.venv/` | Private Python toolbox folder on each PC |
+| `__pycache__/` | Python temporary cache |
+| Most `tests/` | Quality checks for programmers |
+
+**Do understand:** problem statement, data fields, matching criteria, sustainability, and **which folder** holds matching (`backend/.../matching_service.py`) and user screens (`frontend/src/routes/` or `desktop/app.py`).
+
+---
+
+## 8. Software tools explained (pip, Python, and friends)
+
+When your teammate runs commands, they use **tools**. Here is what they mean — no coding required to understand them.
+
+### Python
+
+**What:** A programming language used for `backend/`, `desktop/`, and `index.py`.  
+**Analogy:** Like a **standard method statement** language the server understands.  
+**On your PC:** Installed as `python` or `python3` (Windows: often `python` or `py`).
+
+### pip
+
+**What:** **P**ip **I**nstalls **P**ackages — Python’s **app store for libraries**.  
+**Analogy:** Ordering **standard materials** (cement, steel) from an approved vendor list instead of making them from scratch.  
+**Example:** `pip install -r requirements.txt` reads `requirements.txt` and downloads everything the backend needs (FastAPI, **uvicorn**, MongoDB driver, etc.).  
+**Common error:** `No module named 'uvicorn'` means **pip was not run** (or wrong Python was used) — the library is missing.
+
+### requirements.txt
+
+**What:** A text **bill of materials** listing Python package names and versions.  
+**Where:** `backend/requirements.txt`, `desktop/requirements.txt`.  
+**Analogy:** BOQ line items: “1× FastAPI, 1× uvicorn, …”.
+
+### Virtual environment (`.venv`)
+
+**What:** A **private folder** on your laptop with its own pip packages, separate from other projects.  
+**Analogy:** A **dedicated site store** for one project — tools don’t get mixed with another job.  
+**Activate (Windows):** `.\.venv\Scripts\activate` — prompt shows `(.venv)`.  
+**Activate (Mac/Linux):** `source .venv/bin/activate`.
+
+### uvicorn
+
+**What:** A small **engine** that runs the FastAPI server so it listens on `http://localhost:8000`.  
+**Analogy:** **Power supply** for the site office — without it, `run.py` cannot serve the API.  
+**Installed via:** `pip install -r requirements.txt` (listed in requirements).
+
+### FastAPI
+
+**What:** Framework used to build `backend/` — defines URLs like `/api/v1/materials`, login, matches.  
+**Analogy:** **Pre-fabricated office module** with doors (endpoints) and inspection rules (validation).
+
+### MongoDB
+
+**What:** **Database** — stores users, companies, listings, requirements on disk.  
+**Analogy:** **Central register + warehouse ledger** at head office.  
+**Config:** `MONGODB_URL` in `backend/.env` (from `.env.example`).
+
+### `.env` and `.env.example`
+
+**What:** `.env.example` is a **template** (safe to share). `.env` is your **local copy** with real settings (often **not** uploaded to GitHub).  
+**Analogy:** **Site configuration sheet** — database address, security keys — not your user login password.
+
+### npm / bun / package.json
+
+**What:** Tools to install **JavaScript** libraries for the **website** (`frontend/`).  
+- **npm** — Node package manager (common).  
+- **bun** — faster alternative; this repo may use either (`bun install` or `npm install`).  
+**`package.json`:** Lists website dependencies and commands like `dev` (start local website).  
+**Analogy:** pip, but for the **frontend showroom** instead of the Python server.
+
+### React / Vite
+
+**What:** **React** = library for building interactive pages. **Vite** = dev tool that serves the site quickly on port **5173**.  
+**Analogy:** React = **modular prefab panels** for UI; Vite = **temporary site hut** for demos during construction.
+
+### Git / GitHub
+
+**What:** **Git** tracks changes to files; **GitHub** hosts the project online for the team.  
+**Analogy:** **Revision register + cloud backup** for drawings and reports.
+
+### JWT / API / localhost
+
+| Term | Plain meaning |
+|------|----------------|
+| **API** | Server “menu” of actions (save listing, get matches) the apps call over the network |
+| **localhost** | “This same computer” — `127.0.0.1` |
+| **JWT** | Secure **pass token** after login, proving who you are on later requests |
+| **HTTP** | Standard way browsers and apps send requests (like formal RFI letters) |
+
+### Quick command cheat sheet (what teammates type)
+
+| Command | Meaning in one line |
+|---------|---------------------|
+| `python -m venv .venv` | Create private Python toolbox folder |
+| `.\.venv\Scripts\activate` | Turn on that toolbox (Windows) |
+| `pip install -r requirements.txt` | Install all Python libraries listed |
+| `python run.py` | Start backend server |
+| `npm install` / `bun install` | Install website libraries |
+| `npm run dev` / `bun run dev` | Start website locally |
+| `python desktop/app.py` | Open desktop app window |
+
+---
+
+## 9. What data the system cares about (field checklist)
 
 When explaining **surplus registration** to examiners, mention:
 
@@ -165,7 +427,7 @@ These mirror real decisions: IS codes and specs for quality, logistics cost vs d
 
 ---
 
-## 9. Running the project (simple checklist for demo day)
+## 10. Running the project (simple checklist for demo day)
 
 If teammates handle coding, you should still know **what must be running**:
 
@@ -191,7 +453,7 @@ If you see **`No module named 'uvicorn'`**, Python has not installed the backend
 
 ---
 
-## 10. Sustainability & civil engineering angles (for reports)
+## 11. Sustainability & civil engineering angles (for reports)
 
 Use these in your report, seminar, or viva:
 
@@ -204,7 +466,7 @@ Use these in your report, seminar, or viva:
 
 ---
 
-## 11. One-page summary for presentations
+## 12. One-page summary for presentations
 
 **Title:** ReBuild — Construction Material Exchange Platform  
 
@@ -220,7 +482,7 @@ Use these in your report, seminar, or viva:
 
 ---
 
-## 12. Where to learn more in this repo
+## 13. Where to learn more in this repo
 
 | If you want… | Open… |
 |--------------|--------|
@@ -232,7 +494,7 @@ Use these in your report, seminar, or viva:
 
 ---
 
-## 13. Questions examiners often ask (with short answers)
+## 14. Questions examiners often ask (with short answers)
 
 **Q: Is this only for bricks?**  
 A: No — any listed category/type (steel, aggregate, frames, timber, etc.) with matching units.
@@ -245,6 +507,9 @@ A: Flexible storage for many listings and companies; chosen by the development t
 
 **Q: What is FastAPI / React?**  
 A: Tools to build the **server** and **website** faster — like using standard formwork systems instead of carving wood from scratch.
+
+**Q: What is pip and why do we run it?**  
+A: Pip downloads the Python **libraries** the backend needs (including uvicorn). Without `pip install -r requirements.txt`, the server cannot start.
 
 **Q: What was the mini project contribution?**  
 A: Typically: problem definition, matching logic, desktop or CLI demo, and integration with a real database/API — your team’s report should state your exact division of work.
